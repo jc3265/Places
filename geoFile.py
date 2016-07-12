@@ -20,9 +20,11 @@ def build_URL(lat,longit):
     url = base_url+latitude+','+longitude+radiusString+typeString+key_string
     return url
 
+
 with open('/home/zrtho/Documents/csvFilesWithTimeStamp/place.csv', 'rb') as csvfile:
     myFile = csv.reader(csvfile, delimiter=',')
     for row in myFile:
+        text_file = open('/home/zrtho/Documents/pythonTest/output1.txt', "w")#Text file where the output will be stored
         tid = int(row[0])
         latitude = row[1]
         longitude = row[2]
@@ -30,7 +32,25 @@ with open('/home/zrtho/Documents/csvFilesWithTimeStamp/place.csv', 'rb') as csvf
         time = row[4]
         gid = row[5]
         urlResult= build_URL(latitude,longitude)
-        req = requests.get(urlResult)
-        oneLine = str(req.json())
-        someT = re.findall(r'place_id', oneLine)[0]
-        print someT
+
+        #text_file.write(urlResult).text
+        text_file.write(str(requests.get(urlResult).json()))
+        text_file.close() #close file so that every line is a new file
+        fileToRead = open('/home/zrtho/Documents/pythonTest/output1.txt',"r")#Read the same file and scan for a string
+        #with open('fileToRead', 'r')
+
+        #for line in fileToRead:
+        #    if 'place_id' in line:
+    #            print line
+        #        print tid
+        #else:
+        #    print 'Not here' + line
+        #    print tid
+        #fileToRead.close()
+#        print req.startswith('place_id')
+'''
+        someT = re.findall(r'place_id', oneLine)
+        print someT[0]
+        print len(someT)
+        if()
+'''
