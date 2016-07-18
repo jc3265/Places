@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 import csv         #Csv library
 import requests    #Url Requests library
 import re          #Return Library
@@ -6,11 +7,14 @@ from googleplaces import GooglePlaces, types, lang # Import Google Places librar
 from geopy.distance import great_circle
 import geocoder
 import datetime
+import math
+from pygeocoder import Geocoder
+import string
 
-Key = 'AIzaSyDYElSVqyQ9lUg9ksctNXg8JiSj_6-hEVU' #API Key
+Key = '' #API Key
 google_places = GooglePlaces(Key) #Initialize GooglePlaces object
 myTextFile = '/home/zrtho/Documents/pythonTest/output1.txt' #output file for comparisons
-inputFile = '/home/zrtho/Documents/csvFilesWithTimeStamp/oneFile.csv'
+inputFile = '/home/zrtho/Documents/csvFilesWithTimeStamp/OneLine.csv'
 outputFile = '/home/zrtho/Documents/PyOutput/output2.csv'
 placesFile = '/home/zrtho/Documents/PyOutput/listOfPlaces.csv'
 places = []
@@ -75,7 +79,11 @@ def checkTheFile():
 def getPlaceInformation(place_id, latitude, longitude, numberOfPlaces):
     if place_id == 'Road':
         results = geocoder.google([latitude,longitude], method='reverse') # Returns a geocoder object
+        #print  "pygeocode" + str(Geocoder.reverse_geocode(37.74482, -122.42038))
+        #print "Geocoder: " + str(results)
+        #print results.address
         placeAddress = results.address.split(',')[0]
+        placeOutput(placeAddress, "Road", latitude, longitude)#Add Road to the list
         return (placeAddress,"Road",0)
     else:
         if numberOfPlaces == 1:
@@ -98,7 +106,14 @@ def getPlaceInformation(place_id, latitude, longitude, numberOfPlaces):
             #Operations for place 2:
             place2 = place_id.split(',')[1]
             place2 = google_places.get_place(place_id = place2)
-            placeName2 = str(place2.name.replace(",", ""))
+            #print "Name"
+            #print place2.name
+            #print "Place2" + str(place_id)
+            try:
+                placeName2 = str(place2.name.replace("\xc3\xb1", "n"))
+            except:
+                printable = set(string.printable)
+                placeName2 = (filter(lambda x: x in printable, place2.name))
             a=str(place2.geo_location)
             placeLat2= a.split("Decimal('")[1].split('\')')[0]
             placeLong2=a.split("Decimal('")[2].split('\')')[0]
@@ -138,7 +153,7 @@ def getPlaceInformation(place_id, latitude, longitude, numberOfPlaces):
             placeLong3=a.split("Decimal('")[2].split('\')')[0]
             placeOutput(placeName3, place3.types[0], placeLat3, placeLong3)#Add place 3 to the list
             placeName = str(placeName1)+'|'+str(placeName2)+'|'+str(placeName3) #Return the name of the three places
-            placeTypes = str(place1.types[0])+'|'+str(place2.types[0]) +','+str(place3.types[0])
+            placeTypes = str(place1.types[0])+'|'+str(place2.types[0]) +'|'+str(place3.types[0])
             return (placeName, placeTypes,3)
 
 #################################################################################
@@ -148,7 +163,7 @@ def getPlaceInformation(place_id, latitude, longitude, numberOfPlaces):
 def placeOutput(placeName, placeType, latitude, longitude):
     myWriter = csv.writer(outpuPlacesFile, quoting=csv.QUOTE_NONE, escapechar=' ')
     if placeName in places:
-        return False
+        pass
     else:
         places.append(placeName)
         myWriter.writerow([places.index(placeName)+1, str(placeName), str(placeType), latitude, longitude])
@@ -157,24 +172,24 @@ def placeOutput(placeName, placeType, latitude, longitude):
 #   Function that uses the gid, placeName, placeType, latitude, longitude to #
 #               construct a comma delimited csv file                         #
 ##############################################################################
-def outputToCsv(fileName, placeName, placeType, latitude, longitude, numberOfPlaces, speed,time,distance,occupancy):
+def outputToCsv(fileName, placeName, placeType, latitude, longitude, numberOfPlaces, speed,occupancy,direction, mph):
     myWriter = csv.writer(fileName, quoting=csv.QUOTE_NONE, escapechar=' ')
     #geom = latitude+','+longitude #Works even for those without a '-' but leaveas a ' ' before the comma
     if numberOfPlaces == 0:
         points = "POINT("+str(latitude)+str(longitude)+")" #Works nicely if separated by a '-'
-        myWriter.writerow([0, str(placeName), str(placeType), points, speed])
+        myWriter.writerow([places.index(placeName)+1, str(placeName), str(placeType), points, speed,occupancy, direction, mph])
     elif numberOfPlaces == 1:
         points = "POINT("+str(latitude)+str(longitude)+")"
-        myWriter.writerow([places.index(placeName)+1, str(placeName), str(placeType), points, speed])
+        myWriter.writerow([places.index(placeName)+1, str(placeName), str(placeType), points, speed,occupancy, direction, mph])
     elif numberOfPlaces == 2:
         points = "POINT("+str(latitude)+str(longitude)+")"
         gid = str(places.index(placeName.split("|")[0])+1) +"|"+ str(places.index(placeName.split("|")[1])+1)
-        myWriter.writerow([gid, str(placeName), str(placeType), points, speed])
+        myWriter.writerow([gid, str(placeName), str(placeType), points, speed,occupancy, direction, mph])
     else:
         points = "POINT("+str(latitude)+str(longitude)+")"
         gid = str(places.index(placeName.split("|")[0])+1) +"|"+ str(places.index(placeName.split("|")[1])+1)\
             + "|"+ str(places.index(placeName.split("|")[2])+1)
-        myWriter.writerow([gid, str(placeName), str(placeType), points, speed])
+        myWriter.writerow([gid, str(placeName), str(placeType), points, speed,occupancy, direction, mph])
 
 ###############################################################################
 #   Function that takes two time inputs and finds the difference between them #
@@ -211,6 +226,67 @@ def speed(time, distance):
     else:
         return distance / time
 
+###################################################################
+#   Function that takes the latitdes and longtudes and Calculates #
+#              its direction on the map in degrees                #
+#       Credit to: https://gist.github.com/jeromer/2005586        #
+###################################################################
+def calculate_initial_compass_bearing(pointA, pointB):
+    """
+    Calculates the bearing between two points.
+    The formulae used is the following:
+        θ = atan2(sin(Δlong).cos(lat2),
+                  cos(lat1).sin(lat2) − sin(lat1).cos(lat2).cos(Δlong))
+    :Parameters:
+      - `pointA: The tuple representing the latitude/longitude for the
+        first point. Latitude and longitude must be in decimal degrees
+      - `pointB: The tuple representing the latitude/longitude for the
+        second point. Latitude and longitude must be in decimal degrees
+    :Returns:
+      The bearing in degrees
+    :Returns Type:
+      float
+    """
+    if (type(pointA) != tuple) or (type(pointB) != tuple):
+        raise TypeError("Only tuples are supported as arguments")
+
+    lat1 = math.radians(pointA[0])
+    lat2 = math.radians(pointB[0])
+
+    diffLong = math.radians(pointB[1] - pointA[1])
+
+    x = math.sin(diffLong) * math.cos(lat2)
+    y = math.cos(lat1) * math.sin(lat2) - (math.sin(lat1)
+            * math.cos(lat2) * math.cos(diffLong))
+
+    initial_bearing = math.atan2(x, y)
+
+    # Now we have the initial bearing but math.atan2 return values
+    # from -180° to + 180° which is not what we want for a compass bearing
+    # The solution is to normalize the initial bearing as shown below
+    initial_bearing = math.degrees(initial_bearing)
+    compass_bearing = (initial_bearing + 360) % 360
+
+    return compass_bearing
+
+#################################################################
+#   Function that takes the calculated degrees and returns its  #
+#              corres ponding direction on the map              #
+#
+def getDirection(compass):
+    if compass >=315 or compass <= 45:
+        return 'N'
+    elif compass >=45 and compass <= 90:
+        return 'NE'
+    elif compass >=90 and compass <= 135:
+        return 'SE'
+    elif compass >=135 and compass <= 225:
+        return 'S'
+    elif compass >=225 and compass <= 270:
+        return 'SW'
+    else:
+        return 'NW'
+
 ############
 #   Main   #
 ############
@@ -226,21 +302,24 @@ with open(inputFile, 'rb') as csvfile:
     for row in myCsvFile:
         tid = int(row[0])
         distance=distanceTraveled(latitude,longitude,row[1],row[2])
+        compass = calculate_initial_compass_bearing((float(latitude),float(longitude)),(float(row[1]),float(row[2])))
+        direction = getDirection(compass)
         latitude = row[1]
         longitude = row[2]
         occupancy = int(row[3])
         timediff=timeDifference(time, row[4])
         time = row[4]
         gid = row[5]
+        print gid
         taxiID = row[6]
         urlResult= build_URL(latitude,longitude)
         writeToFile(urlResult)
         place_id,numberOfPlaces = checkTheFile()
         placeName,placeType,numberOfPlaces = getPlaceInformation(place_id, latitude, longitude, numberOfPlaces)
         outputToCsv(oneFile, placeName, placeType, latitude, longitude, numberOfPlaces, speed(timediff, distance)\
-        ,timediff,distance,occupancy)
+        ,occupancy, direction,(speed(timediff, distance) * 2.23694))
     oneFile.close()
     outpuPlacesFile.close()
     b = datetime.datetime.now()
     print 'It took:'
-    print b-a
+    print (b-a).total_seconds()

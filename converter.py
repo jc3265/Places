@@ -1,4 +1,4 @@
-ACCESS_TOKEN = 'AIzaSyDYElSVqyQ9lUg9ksctNXg8JiSj_6-hEVU'
+ACCESS_TOKEN = ''
 
 import urllib
 
