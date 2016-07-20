@@ -4,30 +4,49 @@ import csv         #Csv library
 import requests    #Url Requests library
 import re          #Return Library
 from googleplaces import GooglePlaces, types, lang # Import Google Places library
-from geopy.distance import great_circle
+from geopy.distance import great_circle #Distance formula
 import geocoder
 import datetime
+import calendar
 import math
 from pygeocoder import Geocoder
 import string
+import os
 
 Key = '' #API Key
 google_places = GooglePlaces(Key) #Initialize GooglePlaces object
 myTextFile = '/home/zrtho/Documents/pythonTest/output1.txt' #output file for comparisons
-inputFile = '/home/zrtho/Documents/csvFilesWithTimeStamp/OneLine.csv'
+inputFile = '/home/zrtho/Documents/csvFilesWithTimeStamp/smallPyTest.csv'
 outputFile = '/home/zrtho/Documents/PyOutput/output2.csv'
 placesFile = '/home/zrtho/Documents/PyOutput/listOfPlaces.csv'
 places = []
 
-#geolocator = Nominatim() #osm Returns an object
 
+#Not working, even though the list contains the place it is not found when looking for it
+'''
+def loadPlaces(fileName):
+    places = []
+    if os.stat(fileName).st_size <10 :
+        print "empty"
+    else:
+        with open(fileName, 'r') as inputPlaces:
+            myCsvFile = csv.reader(inputPlaces, delimiter=',')
+            for row in myCsvFile:
+                placeName = str(row[1])
+                if placeName in places:
+                    print 'pass'
+                else:
+                    print 'append'
+                    places.append(placeName)
+    return places
+'''
 ####################################################################################
 #   Function that looks for the nearby places of a given latitude and longitude    #
 ####################################################################################
 def build_URL(lat,longit):
-    base_url = 'https://maps.googleapis.com/maps/api/place/radarsearch/json?location='     # Can change json to xml to change output type
-    lat = str(lat) #Cast String to the Float
-    longit = str(longit) #Cast String to the Float
+    base_url = 'https://maps.googleapis.com/maps/api/place/radarsearch/json?location='# Can change json to xml to change output type
+    latitude = str(lat) #Cast String to the Float
+    longitude = str(longit) #Cast String to the Float
     radius = '15'   #Radius of search in meters
     radiusString = '&radius='+radius
     typeS = 'all' #types, can be specific such as church, park, gas station, etc...
@@ -39,9 +58,8 @@ def build_URL(lat,longit):
 ########################################################
 #   Function that Writes the url result in json format #
 ########################################################
-def writeToFile(url):
+def writeToFile(urlResult):
     text_file = open(myTextFile, "w")#Text file where the output will be stored
-    #text_file.write(str(requests.get(urlResult).text) #Prints nicely in text format
     text_file.write(str(requests.get(urlResult).json()))
     text_file.close() #close file so that every line is a new file
 
@@ -76,82 +94,97 @@ def checkTheFile():
 #   Function that uses the place_id and sends a query to the google API and #
 #      if the place exists it reurns the place type                         #
 #############################################################################
-def getPlaceInformation(place_id, latitude, longitude, numberOfPlaces):
+def getPlaceInformation(place_id, latitude, longitude, numberOfPlaces, outpuPlacesFile):
     if place_id == 'Road':
         results = geocoder.google([latitude,longitude], method='reverse') # Returns a geocoder object
-        #print  "pygeocode" + str(Geocoder.reverse_geocode(37.74482, -122.42038))
-        #print "Geocoder: " + str(results)
-        #print results.address
         placeAddress = results.address.split(',')[0]
-        placeOutput(placeAddress, "Road", latitude, longitude)#Add Road to the list
+        try:
+            placeAddress = str(place.name.replace(",", ""))
+        except:
+            printable = set(string.printable)
+            placeAddress = (filter(lambda x: x in printable, placeAddress))
+        placeOutput(placeAddress, "Road", latitude, longitude, outpuPlacesFile)#Add Road to the list
         return (placeAddress,"Road",0)
     else:
         if numberOfPlaces == 1:
             place = google_places.get_place(place_id = place_id)
-            placeName = str(place.name.replace(",", ""))
+            try:
+                placeName = str(place.name.replace(",", ""))
+            except:
+                printable = set(string.printable)
+                placeName = (filter(lambda x: x in printable, place.name))
             a=str(place.geo_location)
             placeLat= a.split("Decimal('")[1].split('\')')[0]
             placeLong=a.split("Decimal('")[2].split('\')')[0]
-            placeOutput(placeName, place.types[0], placeLat, placeLong)#Add place 1 to the list
+            placeOutput(placeName, place.types[0], placeLat, placeLong, outpuPlacesFile)#Add place 1 to the list
             return (placeName, place.types[0], 1)
         elif numberOfPlaces == 2:
-            #Operations for place 1:
-            place1 = place_id.split(',')[0]
-            place1 = google_places.get_place(place_id = place1)
-            placeName1 = str(place1.name.replace(",", ""))
-            a=str(place1.geo_location)
-            placeLat1= a.split("Decimal('")[1].split('\')')[0]
-            placeLong1=a.split("Decimal('")[2].split('\')')[0]
-            placeOutput(placeName1, place1.types[0], placeLat1, placeLong1)
-            #Operations for place 2:
-            place2 = place_id.split(',')[1]
-            place2 = google_places.get_place(place_id = place2)
-            #print "Name"
-            #print place2.name
-            #print "Place2" + str(place_id)
-            try:
-                placeName2 = str(place2.name.replace("\xc3\xb1", "n"))
-            except:
-                printable = set(string.printable)
-                placeName2 = (filter(lambda x: x in printable, place2.name))
-            a=str(place2.geo_location)
-            placeLat2= a.split("Decimal('")[1].split('\')')[0]
-            placeLong2=a.split("Decimal('")[2].split('\')')[0]
-            placeOutput(placeName2, place2.types[0], placeLat2, placeLong2)#Add place 2 to the list
-            placeName = str(placeName1)+'|'+str(placeName2) #Return the name of the two places
-            placeTypes = str(place1.types[0])+'|'+str(place2.types[0])
-            return (placeName, placeTypes,2)
-        else:
-        #elif numberOfPlaces == 3:
             #Operations for place 1:
             place1 = place_id.split(',')[0]
             place1 = google_places.get_place(place_id = place1)
             try:
                 placeName1 = str(place1.name.replace(",", ""))
             except:
-                placeName1 = place1.name[:-1]
+                printable = set(string.printable)
+                placeName1 = (filter(lambda x: x in printable, place1.name))
             a=str(place1.geo_location)
             placeLat1= a.split("Decimal('")[1].split('\')')[0]
             placeLong1=a.split("Decimal('")[2].split('\')')[0]
-            placeOutput(placeName1, place1.types[0], placeLat1, placeLong1)
-
+            placeOutput(placeName1, place1.types[0], placeLat1, placeLong1, outpuPlacesFile)
             #Operations for place 2:
             place2 = place_id.split(',')[1]
             place2 = google_places.get_place(place_id = place2)
-            placeName2 = str(place2.name.replace(",", ""))
+            try:
+                placeName2 = str(place2.name.replace(",", ""))
+            except:
+                printable = set(string.printable)
+                placeName2 = (filter(lambda x: x in printable, place2.name))
             a=str(place2.geo_location)
             placeLat2= a.split("Decimal('")[1].split('\')')[0]
             placeLong2=a.split("Decimal('")[2].split('\')')[0]
-            placeOutput(placeName2, place2.types[0], placeLat2, placeLong2)#Add place 2 to the list
-
+            placeOutput(placeName2, place2.types[0], placeLat2, placeLong2, outpuPlacesFile)#Add place 2 to the list
+            placeName = str(placeName1)+'|'+str(placeName2) #Return the name of the two places
+            placeTypes = str(place1.types[0])+'|'+str(place2.types[0])
+            return (placeName, placeTypes,2)
+        else:
+            #Operations for place 1:
+            place1 = place_id.split(',')[0]
+            place1 = google_places.get_place(place_id = place1)
+            try:
+                placeName1 = str(place1.name.replace(",", ""))
+            except:
+                printable = set(string.printable)
+                placeName1 = (filter(lambda x: x in printable, place1.name))
+            #except:
+            #    placeName1 = place1.name[:-1]
+            a=str(place1.geo_location)
+            placeLat1= a.split("Decimal('")[1].split('\')')[0]
+            placeLong1=a.split("Decimal('")[2].split('\')')[0]
+            placeOutput(placeName1, place1.types[0], placeLat1, placeLong1, outpuPlacesFile)
+            #Operations for place 2:
+            place2 = place_id.split(',')[1]
+            place2 = google_places.get_place(place_id = place2)
+            try:
+                placeName2 = str(place2.name.replace(",", ""))
+            except:
+                printable = set(string.printable)
+                placeName2 = (filter(lambda x: x in printable, place2.name))
+            a=str(place2.geo_location)
+            placeLat2= a.split("Decimal('")[1].split('\')')[0]
+            placeLong2=a.split("Decimal('")[2].split('\')')[0]
+            placeOutput(placeName2, place2.types[0], placeLat2, placeLong2, outpuPlacesFile)#Add place 2 to the list
             #Operations for place 3:
             place3 = place_id.split(',')[2]
             place3 = google_places.get_place(place_id = place3)
-            placeName3 = str(place3.name.replace(",", ""))
+            try:
+                placeName3 = str(place3.name.replace(",", ""))
+            except:
+                printable = set(string.printable)
+                placeName3 = (filter(lambda x: x in printable, place3.name))
             a=str(place3.geo_location)
             placeLat3= a.split("Decimal('")[1].split('\')')[0]
             placeLong3=a.split("Decimal('")[2].split('\')')[0]
-            placeOutput(placeName3, place3.types[0], placeLat3, placeLong3)#Add place 3 to the list
+            placeOutput(placeName3, place3.types[0], placeLat3, placeLong3, outpuPlacesFile)#Add place 3 to the list
             placeName = str(placeName1)+'|'+str(placeName2)+'|'+str(placeName3) #Return the name of the three places
             placeTypes = str(place1.types[0])+'|'+str(place2.types[0]) +'|'+str(place3.types[0])
             return (placeName, placeTypes,3)
@@ -160,7 +193,7 @@ def getPlaceInformation(place_id, latitude, longitude, numberOfPlaces):
 #   Function that creates a gid, uses placeName, placeType, latitude, longitude #
 #     to construct a comma delimited csv file that has the places information   #
 #################################################################################
-def placeOutput(placeName, placeType, latitude, longitude):
+def placeOutput(placeName, placeType, latitude, longitude , outpuPlacesFile):
     myWriter = csv.writer(outpuPlacesFile, quoting=csv.QUOTE_NONE, escapechar=' ')
     if placeName in places:
         pass
@@ -172,24 +205,29 @@ def placeOutput(placeName, placeType, latitude, longitude):
 #   Function that uses the gid, placeName, placeType, latitude, longitude to #
 #               construct a comma delimited csv file                         #
 ##############################################################################
-def outputToCsv(fileName, placeName, placeType, latitude, longitude, numberOfPlaces, speed,occupancy,direction, mph):
+def outputToCsv(fileName, placeName, placeType, latitude, longitude, numberOfPlaces, speed,occupancy,direction, mph,\
+    timediff, distance, day, time, taxiID, row):
     myWriter = csv.writer(fileName, quoting=csv.QUOTE_NONE, escapechar=' ')
     #geom = latitude+','+longitude #Works even for those without a '-' but leaveas a ' ' before the comma
     if numberOfPlaces == 0:
         points = "POINT("+str(latitude)+str(longitude)+")" #Works nicely if separated by a '-'
-        myWriter.writerow([places.index(placeName)+1, str(placeName), str(placeType), points, speed,occupancy, direction, mph])
+        myWriter.writerow([places.index(placeName)+1, str(placeName), str(placeType), points, speed,occupancy, direction, mph,\
+        timediff, distance, day, time, taxiID, row])
     elif numberOfPlaces == 1:
         points = "POINT("+str(latitude)+str(longitude)+")"
-        myWriter.writerow([places.index(placeName)+1, str(placeName), str(placeType), points, speed,occupancy, direction, mph])
+        myWriter.writerow([places.index(placeName)+1, str(placeName), str(placeType), points, speed,occupancy, direction, mph,\
+        timediff, distance, day, time, taxiID, row])
     elif numberOfPlaces == 2:
         points = "POINT("+str(latitude)+str(longitude)+")"
         gid = str(places.index(placeName.split("|")[0])+1) +"|"+ str(places.index(placeName.split("|")[1])+1)
-        myWriter.writerow([gid, str(placeName), str(placeType), points, speed,occupancy, direction, mph])
+        myWriter.writerow([gid, str(placeName), str(placeType), points, speed,occupancy, direction, mph, timediff, distance\
+        , day, time, taxiID, row])
     else:
         points = "POINT("+str(latitude)+str(longitude)+")"
         gid = str(places.index(placeName.split("|")[0])+1) +"|"+ str(places.index(placeName.split("|")[1])+1)\
             + "|"+ str(places.index(placeName.split("|")[2])+1)
-        myWriter.writerow([gid, str(placeName), str(placeType), points, speed,occupancy, direction, mph])
+        myWriter.writerow([gid, str(placeName), str(placeType), points, speed,occupancy, direction, mph, timediff, distance\
+        , day, time, taxiID, row])
 
 ###############################################################################
 #   Function that takes two time inputs and finds the difference between them #
@@ -272,7 +310,7 @@ def calculate_initial_compass_bearing(pointA, pointB):
 #################################################################
 #   Function that takes the calculated degrees and returns its  #
 #              corres ponding direction on the map              #
-#
+#################################################################
 def getDirection(compass):
     if compass >=315 or compass <= 45:
         return 'N'
@@ -287,39 +325,65 @@ def getDirection(compass):
     else:
         return 'NW'
 
+##################################################################
+#   Function that returns the day of the week given certain time #
+##################################################################
+def getDay(time):
+    time = datetime.datetime.strptime(str(time), '%m-%d-%Y %H:%M:%S') # Read and convert the time
+    return str(calendar.day_name[time.weekday()])
+
 ############
 #   Main   #
 ############
-with open(inputFile, 'rb') as csvfile:
-    a = datetime.datetime.now()
-# Format of the CSV: tid|latitude|longitude|occupancy|time|gid|taxi ID
-    oneFile = open (outputFile, 'wb')
-    outpuPlacesFile = open (placesFile, 'wb')
-    myCsvFile = csv.reader(csvfile, delimiter=',')
-    latitude = 0.0
-    longitude = 0.0
-    time = 0
-    for row in myCsvFile:
-        tid = int(row[0])
-        distance=distanceTraveled(latitude,longitude,row[1],row[2])
-        compass = calculate_initial_compass_bearing((float(latitude),float(longitude)),(float(row[1]),float(row[2])))
-        direction = getDirection(compass)
-        latitude = row[1]
-        longitude = row[2]
-        occupancy = int(row[3])
-        timediff=timeDifference(time, row[4])
-        time = row[4]
-        gid = row[5]
-        print gid
-        taxiID = row[6]
-        urlResult= build_URL(latitude,longitude)
-        writeToFile(urlResult)
-        place_id,numberOfPlaces = checkTheFile()
-        placeName,placeType,numberOfPlaces = getPlaceInformation(place_id, latitude, longitude, numberOfPlaces)
-        outputToCsv(oneFile, placeName, placeType, latitude, longitude, numberOfPlaces, speed(timediff, distance)\
-        ,occupancy, direction,(speed(timediff, distance) * 2.23694))
-    oneFile.close()
-    outpuPlacesFile.close()
-    b = datetime.datetime.now()
-    print 'It took:'
-    print (b-a).total_seconds()
+def driver(taxiID):
+    with open(inputFile, 'r') as csvfile:
+        taxiID = taxiID
+        a = datetime.datetime.now()
+    # Format of the CSV: tid|latitude|longitude|occupancy|time|gid|taxi ID
+        oneFile = open (outputFile, 'ab+')
+        #places = loadPlaces(placesFile) #read and load the places ##Not working ##
+        outpuPlacesFile = open (placesFile, 'ab+') #Write to places, 'a' opens the file for appending
+        myCsvFile = csv.reader(csvfile, delimiter=',')
+        latitude = 0.0
+        longitude = 0.0
+        time = 0
+        myWriter = csv.writer(oneFile, quoting=csv.QUOTE_NONE, escapechar=' ')#Write header to the csv
+        #myWriter.writerow(['pId', 'Place Name', 'Place Type', 'Points', 'Speed (m/s)', 'Occupancy', 'Direction', 'MPH',\
+        # 'time Difference', 'Distance', 'Day', 'time Stamp', 'Taxi ID', "Line"])
+        for row in myCsvFile:
+            tid = int(row[0])
+            if taxiID == int(row[6]):
+                taxiID = int(row[6])
+            else:
+                myWriter.writerow(['New Taxi'])
+                taxiID = int(row[6])
+                latitude = 0.0
+                longitude = 0.0
+                time = 0
+            distance=distanceTraveled(latitude,longitude,row[1],row[2])
+            compass = calculate_initial_compass_bearing((float(latitude),float(longitude)),(float(row[1]),float(row[2])))
+            direction = getDirection(compass)
+            latitude = row[1]
+            longitude = row[2]
+            occupancy = int(row[3])
+            timediff=timeDifference(time, row[4])
+            time = row[4]
+            day = getDay(time)
+            gid = row[5]
+            urlResult= build_URL(latitude,longitude)
+            writeToFile(urlResult)
+            place_id,numberOfPlaces = checkTheFile()
+
+            placeName,placeType,numberOfPlaces = getPlaceInformation(place_id, latitude, longitude, numberOfPlaces, outpuPlacesFile)
+            #print placeName
+            #print placeType
+            outputToCsv(oneFile, placeName, placeType, latitude, longitude, numberOfPlaces, speed(timediff, distance)\
+            ,occupancy, direction,(speed(timediff, distance) * 2.23694), timediff, distance, day, time, taxiID, int(row[5]))
+        oneFile.close()
+        outpuPlacesFile.close()
+        b = datetime.datetime.now()
+        print 'It took:'
+        print (b-a).total_seconds()
+
+
+driver(6)
