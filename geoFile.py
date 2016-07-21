@@ -5,7 +5,7 @@ import requests    #Url Requests library
 import re          #Return Library
 from googleplaces import GooglePlaces, types, lang # Import Google Places library
 from geopy.distance import great_circle #Distance formula
-import geocoder
+#import geocoder
 import datetime
 import calendar
 import math
@@ -14,6 +14,7 @@ import string
 import os
 
 Key = '' #API Key
+myGeocoder = Geocoder(api_key=Key)
 google_places = GooglePlaces(Key) #Initialize GooglePlaces object
 myTextFile = '/home/zrtho/Documents/pythonTest/output1.txt' #output file for comparisons
 inputFile = '/home/zrtho/Documents/csvFilesWithTimeStamp/smallPyTest.csv'
@@ -96,8 +97,9 @@ def checkTheFile():
 #############################################################################
 def getPlaceInformation(place_id, latitude, longitude, numberOfPlaces, outpuPlacesFile):
     if place_id == 'Road':
-        results = geocoder.google([latitude,longitude], method='reverse') # Returns a geocoder object
-        placeAddress = results.address.split(',')[0]
+        results = myGeocoder.reverse_geocode(float(latitude), float(longitude))
+        #results = geocoder.google([latitude,longitude], method='reverse') # Returns a geocoder object
+        placeAddress = str(results).split(',')[0]
         try:
             placeAddress = str(place.name.replace(",", ""))
         except:
@@ -109,7 +111,7 @@ def getPlaceInformation(place_id, latitude, longitude, numberOfPlaces, outpuPlac
         if numberOfPlaces == 1:
             place = google_places.get_place(place_id = place_id)
             try:
-                placeName = str(place.name.replace(",", ""))
+                placeName = str(place.name.replace(",", "").replace('|',""))
             except:
                 printable = set(string.printable)
                 placeName = (filter(lambda x: x in printable, place.name))
@@ -123,7 +125,7 @@ def getPlaceInformation(place_id, latitude, longitude, numberOfPlaces, outpuPlac
             place1 = place_id.split(',')[0]
             place1 = google_places.get_place(place_id = place1)
             try:
-                placeName1 = str(place1.name.replace(",", ""))
+                placeName1 = str(place1.name.replace(",", "").replace('|',""))
             except:
                 printable = set(string.printable)
                 placeName1 = (filter(lambda x: x in printable, place1.name))
@@ -135,7 +137,7 @@ def getPlaceInformation(place_id, latitude, longitude, numberOfPlaces, outpuPlac
             place2 = place_id.split(',')[1]
             place2 = google_places.get_place(place_id = place2)
             try:
-                placeName2 = str(place2.name.replace(",", ""))
+                placeName2 = str(place2.name.replace(",", "").replace('|',""))
             except:
                 printable = set(string.printable)
                 placeName2 = (filter(lambda x: x in printable, place2.name))
@@ -151,7 +153,7 @@ def getPlaceInformation(place_id, latitude, longitude, numberOfPlaces, outpuPlac
             place1 = place_id.split(',')[0]
             place1 = google_places.get_place(place_id = place1)
             try:
-                placeName1 = str(place1.name.replace(",", ""))
+                placeName1 = str(place1.name.replace(",", "").replace('|',""))
             except:
                 printable = set(string.printable)
                 placeName1 = (filter(lambda x: x in printable, place1.name))
@@ -165,7 +167,7 @@ def getPlaceInformation(place_id, latitude, longitude, numberOfPlaces, outpuPlac
             place2 = place_id.split(',')[1]
             place2 = google_places.get_place(place_id = place2)
             try:
-                placeName2 = str(place2.name.replace(",", ""))
+                placeName2 = str(place2.name.replace(",", "").replace('|',""))
             except:
                 printable = set(string.printable)
                 placeName2 = (filter(lambda x: x in printable, place2.name))
@@ -177,7 +179,7 @@ def getPlaceInformation(place_id, latitude, longitude, numberOfPlaces, outpuPlac
             place3 = place_id.split(',')[2]
             place3 = google_places.get_place(place_id = place3)
             try:
-                placeName3 = str(place3.name.replace(",", ""))
+                placeName3 = str(place3.name.replace(",", "").replace('|',""))
             except:
                 printable = set(string.printable)
                 placeName3 = (filter(lambda x: x in printable, place3.name))
@@ -210,23 +212,23 @@ def outputToCsv(fileName, placeName, placeType, latitude, longitude, numberOfPla
     myWriter = csv.writer(fileName, quoting=csv.QUOTE_NONE, escapechar=' ')
     #geom = latitude+','+longitude #Works even for those without a '-' but leaveas a ' ' before the comma
     if numberOfPlaces == 0:
-        points = "POINT("+str(latitude)+str(longitude)+")" #Works nicely if separated by a '-'
-        myWriter.writerow([places.index(placeName)+1, str(placeName), str(placeType), points, speed,occupancy, direction, mph,\
+        #points = "POINT("+str(latitude)+str(longitude)+")" #Works nicely if separated by a '-'
+        myWriter.writerow([places.index(placeName)+1, str(placeName), str(placeType), latitude, longitude, speed,occupancy, direction, mph,\
         timediff, distance, day, time, taxiID, row])
     elif numberOfPlaces == 1:
-        points = "POINT("+str(latitude)+str(longitude)+")"
-        myWriter.writerow([places.index(placeName)+1, str(placeName), str(placeType), points, speed,occupancy, direction, mph,\
+        #points = "POINT("+str(latitude)+str(longitude)+")"
+        myWriter.writerow([places.index(placeName)+1, str(placeName), str(placeType), latitude, longitude, speed,occupancy, direction, mph,\
         timediff, distance, day, time, taxiID, row])
     elif numberOfPlaces == 2:
-        points = "POINT("+str(latitude)+str(longitude)+")"
+        #points = "POINT("+str(latitude)+str(longitude)+")"
         gid = str(places.index(placeName.split("|")[0])+1) +"|"+ str(places.index(placeName.split("|")[1])+1)
-        myWriter.writerow([gid, str(placeName), str(placeType), points, speed,occupancy, direction, mph, timediff, distance\
+        myWriter.writerow([gid, str(placeName), str(placeType), latitude, longitude, speed,occupancy, direction, mph, timediff, distance\
         , day, time, taxiID, row])
     else:
-        points = "POINT("+str(latitude)+str(longitude)+")"
+        #points = "POINT("+str(latitude)+str(longitude)+")"
         gid = str(places.index(placeName.split("|")[0])+1) +"|"+ str(places.index(placeName.split("|")[1])+1)\
             + "|"+ str(places.index(placeName.split("|")[2])+1)
-        myWriter.writerow([gid, str(placeName), str(placeType), points, speed,occupancy, direction, mph, timediff, distance\
+        myWriter.writerow([gid, str(placeName), str(placeType), latitude, longitude, speed,occupancy, direction, mph, timediff, distance\
         , day, time, taxiID, row])
 
 ###############################################################################
@@ -348,8 +350,8 @@ def driver(taxiID):
         longitude = 0.0
         time = 0
         myWriter = csv.writer(oneFile, quoting=csv.QUOTE_NONE, escapechar=' ')#Write header to the csv
-        #myWriter.writerow(['pId', 'Place Name', 'Place Type', 'Points', 'Speed (m/s)', 'Occupancy', 'Direction', 'MPH',\
-        # 'time Difference', 'Distance', 'Day', 'time Stamp', 'Taxi ID', "Line"])
+        myWriter.writerow(['pId', 'Place Name', 'Place Type', 'latitude', 'longitude', 'Speed (m/s)', 'Occupancy', 'Direction', 'MPH',\
+         'time Difference', 'Distance', 'Day', 'time Stamp', 'Taxi ID', "Line"])
         for row in myCsvFile:
             tid = int(row[0])
             if taxiID == int(row[6]):
@@ -375,8 +377,6 @@ def driver(taxiID):
             place_id,numberOfPlaces = checkTheFile()
 
             placeName,placeType,numberOfPlaces = getPlaceInformation(place_id, latitude, longitude, numberOfPlaces, outpuPlacesFile)
-            #print placeName
-            #print placeType
             outputToCsv(oneFile, placeName, placeType, latitude, longitude, numberOfPlaces, speed(timediff, distance)\
             ,occupancy, direction,(speed(timediff, distance) * 2.23694), timediff, distance, day, time, taxiID, int(row[5]))
         oneFile.close()
@@ -386,4 +386,4 @@ def driver(taxiID):
         print (b-a).total_seconds()
 
 
-driver(6)
+driver(1)
