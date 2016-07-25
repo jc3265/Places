@@ -5,7 +5,6 @@ import requests    #Url Requests library
 import re          #Return Library
 from googleplaces import GooglePlaces, types, lang # Import Google Places library
 from geopy.distance import great_circle #Distance formula
-#import geocoder
 import datetime
 import calendar
 import math
