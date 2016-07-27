@@ -349,14 +349,14 @@ def driver(taxiID):
         longitude = 0.0
         time = 0
         myWriter = csv.writer(oneFile, quoting=csv.QUOTE_NONE, escapechar=' ')#Write header to the csv
-        myWriter.writerow(['pId', 'Place Name', 'Place Type', 'latitude', 'longitude', 'Speed (m/s)', 'Occupancy', 'Direction', 'MPH',\
-         'time Difference', 'Distance', 'Day', 'time Stamp', 'Taxi ID', "Line"])
+        #myWriter.writerow(['pId', 'Place Name', 'Place Type', 'latitude', 'longitude', 'Speed (m/s)', 'Occupancy', 'Direction', 'MPH',\
+        # 'time Difference', 'Distance', 'Day', 'time Stamp', 'Taxi ID', "Line"])
         for row in myCsvFile:
             tid = int(row[0])
             if taxiID == int(row[6]):
                 taxiID = int(row[6])
             else:
-                myWriter.writerow(['New Taxi'])
+                #myWriter.writerow(['New Taxi'])
                 taxiID = int(row[6])
                 latitude = 0.0
                 longitude = 0.0
