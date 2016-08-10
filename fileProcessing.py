@@ -1,5 +1,19 @@
 #!/usr/bin/env python
 # coding=utf-8
+__author__ = "Juan Caldas"
+#This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, see <http://www.gnu.org/licenses/>
+
 import math
 import sys
 import csv
@@ -7,7 +21,7 @@ import datetime
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm  # Color Map
-from geoFile import timeDifference
+from geoFile import timeDifference, distanceTraveled
 from geopy.distance import great_circle #Distance formula
 from random import randint
 
@@ -624,6 +638,7 @@ def plotSpeed(points):
     #plt.axis([0,120,0,1])
     plt.show()
 
+'''
 #############################################################################
 #   Function that takes a set of two latitudes and longitudes and finds the #
 #                distance using the great_circle formula                    #
@@ -635,6 +650,7 @@ def distanceTraveled(lat1, long1, lat2, long2):
         loc1 = (float(lat1), float(long1))
         loc2 = (float(lat2), float(long2))
         return(great_circle(loc1, loc2).meters)
+'''
 
 def getClusterMembers(clusterList):
     for x in xrange (0,len(clusterList)):
@@ -646,29 +662,30 @@ def createWindowClusters(windows):
     try:
         for x in xrange(0, len(windows)):
             smallDistance = sys.maxint
-            print "For Window: " + str(x)
+            print "For Time window: " + str(x) + " During the time: " + str(windows[x][0].getTimeStamp()) \
+            + " and: " +  str(windows[x][(len(windows[x])-1)].getTimeStamp())
             inOrder = sorted(windows[x],key=lambda point: point.getTaxiID(), reverse=False)
             done = False
             tries = 0
             index = 0
-            while ((not done) and (int(tries) <= int(10))) :
+            while ((not done) and (int(tries) <= int(12))) :
                 for q in range (0, len (inOrder)):
 
                     ranNum = randint(0, len(inOrder)-1)
                     distance = distanceTraveled(inOrder[ranNum].getLatitude(), inOrder[ranNum].getLongitude(), inOrder[q].getLatitude(), inOrder[q].getLongitude())
                     if int(inOrder[ranNum].getTaxiID()) == int(inOrder[q].getTaxiID()):
-                        ranNum += 1
+                        ranNum = randint(0, len(inOrder)-1)
+                        done = False
                     else:
                         if distance < smallDistance:
-                            print "Another between Taxi: " + str(inOrder[ranNum].getTaxiID()) + " and Taxi: " + \
-                                str(inOrder[index].getTaxiID()) + " their distance is: " + str(smallDistance) + "m, their direction is: "\
-                                + str(inOrder[ranNum].getDirection()) + " and: " + str(inOrder[index].getDirection())
                             smallDistance = distance
+                            #print "Another between Taxi: " + str(inOrder[ranNum].getTaxiID()) + " and Taxi: " + \
+                            #    str(inOrder[index].getTaxiID()) + " their distance is: " + str(smallDistance) + "m, their direction is: "\
+                            #    + str(inOrder[ranNum].getDirection()) + " and: " + str(inOrder[index].getDirection())
                             index = q
                         else:
                             taxiID = int (inOrder[q].getTaxiID())
                 if smallDistance > 200:
-                    ranNum = randint(0, len(inOrder)-1)
                     tries += 1
                     done = False
                 else:
@@ -678,7 +695,7 @@ def createWindowClusters(windows):
                         str(inOrder[index].getTaxiID()) + " their distance is: " + str(smallDistance) + "m, their direction is: "\
                         + str(inOrder[ranNum].getDirection()) + " and: " + str(inOrder[index].getDirection())
                 else:
-                    print "No relationships found for the given time window"
+                    print "No meaningful relationships found for the given time window"
 
     except Exception as e:
         print e
@@ -715,6 +732,15 @@ def analyzeWindow(windows):
                 #members.append(int(windows[x][q].getTaxiID()))
     '''
 
+
+def similarity(object1, object2):
+    distance = distanceTraveled(float(object1.getLatitude()), float(object1.getLongitude()), float(object2.getLatitude()), float(object2.getLongitude()))
+    p1dir= object1.getDirection()
+    p2dir= object1.getDirection()
+    #Each point has lat and long
+
+
+
 ############
 #   Main   #
 ############
@@ -724,14 +750,20 @@ def driver():
     #print datetime.datetime.strptime(str("05-17-2008 06:22:40"), '%m-%d-%Y %H:%M:%S').minute
     loadPlaces(placesFile)
     loadPoints(pointsFile)
+    #windows = createWindow(points)
+    #createWindowClusters(windows)
 
+    point1, point2, point3, point4 = calculateRange(100 ,37.75164, -122.39426)
+    pointsInRange, taxis = getPointsInRangeWithTime(point1, point2, point3, point4,'05-17-2008 06:22:40', 30)
+
+    #print len (pointsInRange)
+    print "There are: " + str(len(pointsInRange)) + " points in range from: " + str(len(taxis)) + " different taxis"
+
+    '''
     #print datetime.datetime.strptime(str(points[0].getTimeStamp()), '%m-%d-%Y %H:%M:%S').date()
-    #splitWindow(points, 12)
-    windows = createWindow(points)
-    #analyzeWindow(windows)
     #plotClusters(windows)
     #getClusterMembers(windows)
-    createWindowClusters(windows)
+    analyzeWindow(windows)
 
     #plot(points)
     #plot(windows[0])
@@ -739,7 +771,6 @@ def driver():
     #plot(windows[2])
     #       plot(windows[3])
 
-    '''
     print len(windows)
     total = 0
     for x in xrange(0, len(windows)):
@@ -778,16 +809,16 @@ def driver():
     #plot(points)
 
     getClusterMembers(windows)
-    '''
     #plotClusters(windows)
     #plotClusters(points)
 
-    #stops =findStops(points,3,120)
+    stops =findStops(points,3,120)
     #print "same day no order"
     #print len(stops)
-    #for x in xrange (0, len(stops)):
-    #    print str(stops[x].getName()) + " " + str(stops[x].getTimeStamp())
+    for x in xrange (0, len(stops)):
+        print str(stops[x].getName()) + " " + str(stops[x].getTimeStamp())
 
+        '''
     ####################################
     ##THIS BLOCK WORKS
     #tempList = typesList('points')#Or points
@@ -797,11 +828,6 @@ def driver():
     # Find for clusters on the same day
     # Find stops
 
-    #point1, point2, point3, point4 = calculateRange(100 ,37.75164, -122.39426)
-    #pointsInRange, taxis = getPointsInRangeWithTime(point1, point2, point3, point4,'05-17-2008 06:22:40', 30)
-
-    #print len (pointsInRange)
-    #print "There are: " + str(len(pointsInRange)) + " points in range from: " + str(len(taxis)) + " different taxis"
 
     #pir = getPointsInRange(point1, point2, point3, point4)
     #npir = filterTime(pir,'05-17-2008 06:05:40', 3000)
